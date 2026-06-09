@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Kayak Pro"/>
+  <title>🚣 Kayak Forecast — Advanced</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(160deg, #0b1929 0%, #0d2137 50%, #091520 100%);
+      font-family: 'DM Mono', monospace;
+      color: white; overflow-x: hidden;
+    }
+    #bg-glow {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(14,80,140,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(6,50,90,0.2) 0%, transparent 50%);
+    }
+    #wave-svg { position: fixed; bottom: 0; left: 0; width: 100%; opacity: 0.05; z-index: 0; }
+    #app { max-width: 580px; margin: 0 auto; padding: 36px 18px 80px; position: relative; z-index: 1; }
+
+    /* HEADER */
+    .hdr-eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .hdr-eyebrow span { font-size: 11px; letter-spacing: 3px; color: rgba(255,255,255,0.4); text-transform: uppercase; }
+    .hdr-title { font-family: 'DM Serif Display', serif; font-size: 26px; letter-spacing: -0.5px; }
+    .hdr-meta { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 5px; line-height: 1.6; }
+
+    /* LOCATION BAR */
+    #loc-bar {
+      background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 12px; padding: 12px 16px; margin: 18px 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    #loc-text { font-size: 12px; color: rgba(255,255,255,0.6); flex: 1; line-height: 1.5; }
+    #loc-text strong { color: #38bdf8; display: block; font-size: 13px; }
+    #btn-loc {
+      background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.35);
+      color: #38bdf8; border-radius: 8px; padding: 8px 12px; cursor: pointer;
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* NOW CARD */
+    #now-card {
+      border-radius: 20px; padding: 22px;
+      display: flex; align-items: center; gap: 22px;
+      margin-bottom: 16px; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      transition: border-color 0.5s, box-shadow 0.5s;
+    }
+    #now-verdict { font-family: 'DM Serif Display', serif; font-size: 28px; line-height: 1; transition: color 0.5s; }
+    #now-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 6px; }
+    #now-detail { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px; line-height: 1.6; }
+
+    /* SCORE RING */
+    .ring-wrap { flex-shrink: 0; }
+
+    /* BEST WINDOWS */
+    #windows-section { margin-bottom: 20px; }
+    .section-label {
+      font-size: 11px; letter-spacing: 2px; color: rgba(255,255,255,0.35);
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    #windows-list { display: flex; flex-direction: column; gap: 8px; }
+    .window-card {
+      background: rgba(74,222,128,0.07); border: 1px solid rgba(74,222,128,0.2);
+      border-radius: 12px; padding: 13px 16px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .window-time { font-family: 'DM Serif Display', serif; font-size: 17px; color: #4ade80; }
+    .window-meta { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    .window-dur {
+      font-size: 11px; color: #4ade80;
+      background: rgba(74,222,128,0.12); border-radius: 6px; padding: 4px 8px;
+    }
+    #no-windows {
+      background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 12px; padding: 13px 16px;
+      font-size: 13px; color: rgba(255,255,255,0.5);
+    }
+
+    /* CURRENT CONDITIONS ROW */
+    #cond-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .cond-chip {
+      background: rgba(255,255,255,0.04); border-radius: 10px; padding: 11px 14px;
+      flex: 1 1 100px; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .cond-chip-label { font-size: 10px; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 4px; }
+    .cond-chip-val { font-family: 'DM Serif Display', serif; font-size: 20px; }
+    .cond-chip-unit { font-size: 12px; color: rgba(255,255,255,0.35); margin-left: 2px; }
+
+    /* FORECAST TIMELINE */
+    #timeline-section { margin-bottom: 20px; }
+    #timeline-scroll {
+      overflow-x: auto; padding-bottom: 8px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #timeline-scroll::-webkit-scrollbar { display: none; }
+    #timeline-inner { display: flex; gap: 6px; width: max-content; padding: 4px 2px; }
+    .t-col {
+      width: 52px; border-radius: 10px; padding: 10px 6px 8px;
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      border: 1px solid transparent; transition: background 0.3s;
+      cursor: default; position: relative;
+    }
+    .t-col.t-now { border-color: rgba(255,255,255,0.25) !important; }
+    .t-col.t-night { background: rgba(255,255,255,0.02); }
+    .t-col.t-score-100 { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.2); }
+    .t-col.t-score-hi  { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.15); }
+    .t-col.t-score-lo  { background: rgba(248,113,113,0.06); }
+    .t-hour { font-size: 10px; color: rgba(255,255,255,0.4); letter-spacing: 0.5px; }
+    .t-score-num {
+      font-family: 'DM Serif Display', serif; font-size: 15px; line-height: 1;
+    }
+    .t-bar-wrap { width: 28px; height: 40px; display: flex; align-items: flex-end; }
+    .t-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.5s; }
+    .t-icon { font-size: 13px; line-height: 1; }
+    .t-day-marker {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 9px; color: rgba(255,255,255,0.3); white-space: nowrap; letter-spacing: 1px;
+    }
+
+    /* ALERTS */
+    #alerts-banner {
+      background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3);
+      border-radius: 12px; padding: 13px 16px; margin-bottom: 16px; display: none;
+    }
+    .alert-hdr { color: #fbbf24; font-size: 11px; letter-spacing: 2px; margin-bottom: 6px; }
+    .alert-item { color: rgba(255,255,255,0.7); font-size: 12px; line-height: 1.5; margin-bottom: 4px; }
+    .alert-item strong { color: #fbbf24; }
+
+    /* CONTROLS */
+    #controls { display: flex; gap: 10px; margin-bottom: 18px; }
+    button {
+      flex: 1; border-radius: 10px; padding: 12px 8px; cursor: pointer;
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1.5px;
+      transition: opacity 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:active:not(:disabled) { opacity: 0.65; }
+    #btn-refresh { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; }
+    #btn-thresh  { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+    #btn-thresh.open { background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.35); color: #fbbf24; }
+
+    /* THRESHOLD PANEL */
+    #thresh-panel {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(251,191,36,0.2);
+      border-radius: 14px; padding: 18px; margin-bottom: 18px; display: none;
+    }
+    .tp-title { font-size: 11px; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin-bottom: 14px; }
+    .tp-row { margin-bottom: 14px; }
+    .tp-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .tp-name { color: rgba(255,255,255,0.5); font-size: 12px; }
+    .tp-val  { color: #fbbf24; font-size: 12px; }
+    input[type=range] { width: 100%; accent-color: #fbbf24; cursor: pointer; }
+    #btn-save {
+      width: 100%; background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4);
+      color: #fbbf24; border-radius: 8px; padding: 10px; margin-top: 4px;
+      font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1.5px;
+    }
+
+    #footer { font-size: 10px; color: rgba(255,255,255,0.18); line-height: 1.8; text-align: center; }
+
+    /* LOADING OVERLAY */
+    #loading-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(9,21,32,0.92);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    }
+    #loading-overlay.hidden { display: none; }
+    .spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #38bdf8;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-msg { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+<div id="bg-glow"></div>
+<svg id="wave-svg" viewBox="0 0 1440 120" preserveAspectRatio="none">
+  <path d="M0,60 C240,100 480,20 720,60 C960,100 1200,20 1440,60 L1440,120 L0,120 Z" fill="#4ade80"/>
+  <path d="M0,80 C360,40 720,100 1080,60 C1260,40 1380,80 1440,70 L1440,120 L0,120 Z" fill="#38bdf8"/>
+</svg>
+
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <div id="loading-msg">LOCATING…</div>
+</div>
+
+<div id="app">
+  <!-- Header -->
+  <div style="margin-bottom:20px">
+    <div class="hdr-eyebrow"><span style="font-size:20px">🚣</span><span>Kayak Forecast · Advanced</span></div>
+    <div class="hdr-title">48-Hour Conditions</div>
+    <div class="hdr-meta" id="hdr-meta">Locating nearest tide station…</div>
+  </div>
+
+  <!-- Location bar -->
+  <div id="loc-bar">
+    <div id="loc-text"><strong id="loc-station">—</strong><span id="loc-coords">Tap to use your location</span></div>
+    <button id="btn-loc" onclick="getLocation()">📍 LOCATE</button>
+  </div>
+
+  <!-- Alerts -->
+  <div id="alerts-banner">
+    <div class="alert-hdr">⚠ ACTIVE ALERTS</div>
+    <div id="alerts-list"></div>
+  </div>
+
+  <!-- Now card -->
+  <div id="now-card">
+    <svg class="ring-wrap" width="120" height="120" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"/>
+      <circle id="ring-fill" cx="70" cy="70" r="54" fill="none"
+        stroke="#f87171" stroke-width="10" stroke-dasharray="0 339.3"
+        stroke-linecap="round" transform="rotate(-90 70 70)"
+        style="transition:stroke-dasharray 1s ease,stroke 0.5s ease"/>
+      <text id="ring-num" x="70" y="65" text-anchor="middle"
+        fill="#f87171" font-size="26" font-family="'DM Serif Display',serif" font-weight="bold">—</text>
+      <text x="70" y="83" text-anchor="middle"
+        fill="rgba(255,255,255,0.4)" font-size="10" font-family="'DM Mono',monospace" letter-spacing="2">NOW</text>
+    </svg>
+    <div>
+      <div style="font-size:11px;letter-spacing:2px;color:rgba(255,255,255,0.3);margin-bottom:5px">RIGHT NOW</div>
+      <div id="now-verdict" style="color:#f87171">—</div>
+      <div id="now-detail"></div>
+    </div>
+  </div>
+
+  <!-- Best windows -->
+  <div id="windows-section">
+    <div class="section-label">🟢 Best Paddle Windows (next 48hrs)</div>
+    <div id="windows-list"><div id="no-windows" style="display:none">No ideal windows found in the next 48 hours.</div></div>
+  </div>
+
+  <!-- Current conditions chips -->
+  <div class="section-label" style="margin-bottom:10px">Current Conditions</div>
+  <div id="cond-row">
+    <div class="cond-chip">
+      <div class="cond-chip-label">Tide Level*</div>
+      <div class="cond-chip-val" id="chip-tide">—<span class="cond-chip-unit">ft</span></div>
+    </div>
+    <div class="cond-chip">
+      <div class="cond-chip-label">Wind</div>
+      <div class="cond-chip-val" id="chip-wind">—<span class="cond-chip-unit">kn</span></div>
+    </div>
+    <div class="cond-chip">
+      <div class="cond-chip-label">Precip</div>
+      <div class="cond-chip-val" id="chip-precip">—<span class="cond-chip-unit">in/hr</span></div>
+    </div>
+    <div class="cond-chip">
+      <div class="cond-chip-label">Daylight</div>
+      <div class="cond-chip-val" id="chip-daylight" style="font-size:13px">—</div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div id="timeline-section">
+    <div class="section-label">48-Hour Forecast Timeline</div>
+    <div id="timeline-scroll"><div id="timeline-inner"></div></div>
+    <div style="display:flex;gap:14px;margin-top:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.3)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(74,222,128,0.3)"></div>IDEAL
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.3)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(251,191,36,0.3)"></div>PARTIAL
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.3)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(248,113,113,0.2)"></div>POOR
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.3)">
+        <div style="width:10px;height:10px;border-radius:2px;background:rgba(255,255,255,0.06)"></div>NIGHT
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button id="btn-refresh" onclick="refresh()" disabled>↻ REFRESH</button>
+    <button id="btn-thresh" onclick="toggleThresh()">⚙ THRESHOLDS</button>
+  </div>
+
+  <!-- Threshold panel -->
+  <div id="thresh-panel">
+    <div class="tp-title">PADDLE THRESHOLDS</div>
+    <div class="tp-row">
+      <div class="tp-top"><span class="tp-name">Min Tide Level</span><span class="tp-val" id="dv-tide">5.0 ft</span></div>
+      <input type="range" id="sl-tide" min="0" max="20" step="0.5" value="5.0"
+        oninput="document.getElementById('dv-tide').textContent=parseFloat(this.value).toFixed(1)+' ft'"/>
+    </div>
+    <div class="tp-row">
+      <div class="tp-top"><span class="tp-name">Max Wind Speed</span><span class="tp-val" id="dv-wind">5 kn</span></div>
+      <input type="range" id="sl-wind" min="0" max="30" step="1" value="5"
+        oninput="document.getElementById('dv-wind').textContent=this.value+' kn'"/>
+    </div>
+    <div class="tp-row">
+      <div class="tp-top"><span class="tp-name">Max Precipitation</span><span class="tp-val" id="dv-precip">0.10 in/hr</span></div>
+      <input type="range" id="sl-precip" min="0" max="1" step="0.05" value="0.10"
+        oninput="document.getElementById('dv-precip').textContent=parseFloat(this.value).toFixed(2)+' in/hr'"/>
+    </div>
+    <button id="btn-save" onclick="saveAndRefresh()">SAVE &amp; RECALCULATE</button>
+  </div>
+
+  <div id="footer">
+    Data: NOAA Tides &amp; Currents · Open-Meteo · NWS Alerts (WAZ516 + PZZ132)<br>
+    * Tide interpolated from NOAA hi/lo predictions · Daylight based on GPS coordinates<br>
+    Always verify conditions before launching. Use good judgment on the water.
+  </div>
+</div>
+
+<script>
+// ── NOAA stations: South Puget Sound + broader WA coast ──────────────────────
+const STATIONS = [
+  { id:"9446969", name:"Olympia, Budd Inlet",        lat:47.0477,  lon:-122.9007 },
+  { id:"9446833", name:"Olympia",                    lat:47.0534,  lon:-122.9007 },
+  { id:"9447130", name:"Seattle",                    lat:47.6026,  lon:-122.3393 },
+  { id:"9446484", name:"Tacoma",                     lat:47.2690,  lon:-122.4134 },
+  { id:"9445958", name:"Steilacoom",                 lat:47.1726,  lon:-122.6015 },
+  { id:"9446088", name:"Shelton",                    lat:47.2154,  lon:-123.0987 },
+  { id:"9445719", name:"Port Townsend",              lat:48.1126,  lon:-122.7604 },
+  { id:"9444900", name:"Port Angeles",               lat:48.1231,  lon:-123.4408 },
+  { id:"9441102", name:"Westport",                   lat:46.9043,  lon:-124.1050 },
+  { id:"9443090", name:"Neah Bay",                   lat:48.3686,  lon:-124.6178 },
+  { id:"9448427", name:"LaConner",                   lat:48.3939,  lon:-122.4978 },
+  { id:"9449880", name:"Friday Harbor",              lat:48.5354,  lon:-123.0165 },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let params   = { minTide: 5.0, maxWind: 5, maxPrecip: 0.10 };
+let userLat  = null, userLon = null;
+let station  = STATIONS[0]; // default Budd Inlet
+let forecast = []; // array of hourly objects
+let isReady  = false;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function dateStr(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function nearestStation(lat, lon) {
+  let best = STATIONS[0], bestDist = Infinity;
+  for (const s of STATIONS) {
+    const d = haversine(lat, lon, s.lat, s.lon);
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
+}
+
+// Sunrise/sunset — simple astronomical calculation (accurate ±5min)
+function sunTimes(lat, lon, date) {
+  const rad = Math.PI/180;
+  const n = Math.floor((date - new Date(date.getFullYear(),0,0)) / 86400000);
+  const L = (280.460 + 0.9856474*n) % 360;
+  const g = (357.528 + 0.9856003*n) % 360;
+  const lambda = L + 1.915*Math.sin(g*rad) + 0.020*Math.sin(2*g*rad);
+  const eps = 23.439 - 0.0000004*n;
+  const sinDec = Math.sin(eps*rad)*Math.sin(lambda*rad);
+  const cosDec = Math.cos(Math.asin(sinDec));
+  const cosH = (Math.cos(90.833*rad) - sinDec*Math.sin(lat*rad)) / (cosDec*Math.cos(lat*rad));
+  if (cosH > 1) return { rise: null, set: null }; // polar night
+  if (cosH < -1) return { rise: 0, set: 1440 };   // midnight sun
+  const H = Math.acos(cosH)/rad;
+  const RA = Math.atan2(Math.cos(eps*rad)*Math.sin(lambda*rad), Math.cos(lambda*rad))/rad/15;
+  const noon = 720 - 4*(lon) - (RA - n*0.9856647 - 6.697375)*60;
+  const rise = noon - H*4;
+  const set  = noon + H*4;
+  // Convert UTC minutes to local Date objects
+  const toLocal = (minUTC) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) + minUTC*60000);
+  return { rise: toLocal(rise), set: toLocal(set) };
+}
+
+function isDaylight(dt, lat, lon) {
+  const sun = sunTimes(lat, lon, dt);
+  if (!sun.rise) return false;
+  return dt >= sun.rise && dt <= sun.set;
+}
+
+function scoreHour(tideVal, windVal, precipVal, dt, lat, lon) {
+  if (!isDaylight(dt, lat, lon)) return 0;
+  const tOk = tideVal   >= params.minTide;
+  const wOk = windVal   <= params.maxWind;
+  const pOk = precipVal <= params.maxPrecip;
+  const pass = [tOk, wOk, pOk].filter(Boolean).length;
+  return Math.round((pass / 3) * 100);
+}
+
+function scoreColor(s) {
+  return s === 100 ? '#4ade80' : s >= 67 ? '#fbbf24' : s >= 34 ? '#fb923c' : '#f87171';
+}
+
+function fmtTime(dt) {
+  return dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+}
+function fmtDay(dt) {
+  return dt.toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' });
+}
+
+// ── Score ring ────────────────────────────────────────────────────────────────
+const CIRC = 2 * Math.PI * 54;
+function setRing(score) {
+  const color = scoreColor(score);
+  const dash  = (score/100)*CIRC;
+  document.getElementById('ring-fill').setAttribute('stroke-dasharray', `${dash} ${CIRC}`);
+  document.getElementById('ring-fill').setAttribute('stroke', color);
+  document.getElementById('ring-num').textContent = score;
+  document.getElementById('ring-num').setAttribute('fill', color);
+}
+
+// ── Location ──────────────────────────────────────────────────────────────────
+function setLoading(msg) { document.getElementById('loading-msg').textContent = msg; }
+function hideLoading()   { document.getElementById('loading-overlay').classList.add('hidden'); }
+
+function getLocation() {
+  document.getElementById('loading-overlay').classList.remove('hidden');
+  setLoading('LOCATING…');
+  if (!navigator.geolocation) {
+    hideLoading();
+    useFallback('Geolocation not supported');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLon = pos.coords.longitude;
+      station = nearestStation(userLat, userLon);
+      document.getElementById('loc-station').textContent = station.name;
+      document.getElementById('loc-coords').textContent =
+        `${userLat.toFixed(3)}°N ${Math.abs(userLon).toFixed(3)}°W · ${haversine(userLat, userLon, station.lat, station.lon).toFixed(0)} km from station`;
+      fetchAll();
+    },
+    err => {
+      hideLoading();
+      useFallback('Location denied — using Budd Inlet default');
+    },
+    { timeout: 10000, maximumAge: 300000 }
+  );
+}
+
+function useFallback(msg) {
+  userLat = station.lat; userLon = station.lon;
+  document.getElementById('loc-station').textContent = station.name + ' (default)';
+  document.getElementById('loc-coords').textContent = msg;
+  fetchAll();
+}
+
+// ── Fetch all data ────────────────────────────────────────────────────────────
+async function fetchAll() {
+  setLoading('FETCHING TIDES…');
+  document.getElementById('btn-refresh').disabled = true;
+
+  const lat = userLat || station.lat;
+  const lon = userLon || station.lon;
+
+  // 1. NOAA hi/lo predictions (3 days for full 48hr interpolation)
+  let tidePredictions = [];
+  try {
+    const url = `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter`
+      + `?begin_date=${dateStr(-1)}&end_date=${dateStr(2)}`
+      + `&station=${station.id}&product=predictions`
+      + `&datum=MLLW&time_zone=lst_ldt&units=english&interval=hilo&application=web_services&format=json`;
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (!json.error && json.predictions) {
+      tidePredictions = json.predictions.map(p => ({ t: new Date(p.t).getTime(), v: parseFloat(p.v) }));
+    }
+  } catch(_) {}
+
+  function getTideAt(ts) {
+    if (!tidePredictions.length) return null;
+    let before = null, after = null;
+    for (const p of tidePredictions) {
+      if (p.t <= ts) before = p;
+      else if (!after) after = p;
+    }
+    if (before && after) {
+      const frac = (ts - before.t) / (after.t - before.t);
+      return before.v + frac * (after.v - before.v);
+    }
+    return (before || after)?.v ?? null;
+  }
+
+  // 2. Open-Meteo — hourly wind + precip for 48hrs
+  setLoading('FETCHING WEATHER…');
+  let hourlyWind = [], hourlyPrecip = [], hourlyTimes = [];
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast`
+      + `?latitude=${lat}&longitude=${lon}`
+      + `&hourly=wind_speed_10m,precipitation`
+      + `&wind_speed_unit=kn&timezone=America%2FLos_Angeles&forecast_days=3`;
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (json.hourly) {
+      hourlyTimes  = json.hourly.time;
+      hourlyWind   = json.hourly.wind_speed_10m;
+      hourlyPrecip = json.hourly.precipitation;
+    }
+  } catch(_) {}
+
+  // 3. NWS Alerts
+  setLoading('FETCHING ALERTS…');
+  try {
+    const [r1, r2] = await Promise.allSettled([
+      fetch('https://api.weather.gov/alerts/active?zone=WAZ516&status=actual'),
+      fetch('https://api.weather.gov/alerts/active?zone=PZZ132&status=actual'),
+    ]);
+    const all = [];
+    for (const r of [r1, r2]) {
+      if (r.status === 'fulfilled' && r.value.ok) {
+        const j = await r.value.json();
+        all.push(...(j.features || []));
+      }
+    }
+    const seen = new Set();
+    const deduped = all.filter(a => { const id = a.id||a.properties?.id; if(seen.has(id)) return false; seen.add(id); return true; });
+    const banner = document.getElementById('alerts-banner');
+    const list   = document.getElementById('alerts-list');
+    if (deduped.length > 0) {
+      banner.style.display = 'block';
+      list.innerHTML = deduped.map(a =>
+        `<div class="alert-item"><strong>${a.properties?.event||'Alert'}</strong>${a.properties?.headline ? ' — '+a.properties.headline : ''}</div>`
+      ).join('');
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch(_) {}
+
+  // 4. Build hourly forecast array (next 48hrs from now)
+  setLoading('CALCULATING…');
+  const now48 = Date.now();
+  forecast = [];
+
+  for (let i = 0; i < hourlyTimes.length; i++) {
+    const dt  = new Date(hourlyTimes[i]);
+    const ts  = dt.getTime();
+    if (ts < now48 - 3600000) continue;
+    if (forecast.length >= 49) break;
+    const wind   = hourlyWind[i]   ?? null;
+    const precip = hourlyPrecip[i] ?? null;
+    const tide   = getTideAt(ts);
+    const score  = (tide !== null && wind !== null && precip !== null)
+      ? scoreHour(tide, wind, precip, dt, lat, lon) : null;
+    forecast.push({ dt, ts, tide, wind, precip, score });
+  }
+
+  // 5. Render everything
+  renderNow(lat, lon);
+  renderWindows();
+  renderTimeline();
+  updateHdrMeta(lat, lon);
+
+  hideLoading();
+  isReady = true;
+  document.getElementById('btn-refresh').disabled = false;
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderNow(lat, lon) {
+  const now = forecast[0];
+  if (!now) return;
+
+  const score = now.score ?? 0;
+  const color = scoreColor(score);
+
+  setRing(score);
+
+  const card = document.getElementById('now-card');
+  card.style.borderColor = color + '33';
+  card.style.boxShadow   = `0 0 40px ${color}11`;
+
+  const verdict = score === 100 ? 'GO PADDLE'
+    : score >= 67 ? 'USE CAUTION'
+    : score >= 34 ? 'MARGINAL'
+    : isDaylight(now.dt, lat, lon) ? 'STAY ASHORE' : 'AFTER DARK';
+  document.getElementById('now-verdict').textContent = verdict;
+  document.getElementById('now-verdict').style.color = color;
+
+  const sun = sunTimes(lat, lon, now.dt);
+  const sunStr = sun.rise ? `Sunrise ${fmtTime(sun.rise)} · Sunset ${fmtTime(sun.set)}` : 'No sun data';
+
+  document.getElementById('now-detail').innerHTML =
+    `<div style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:6px;line-height:1.7">`
+    + `🌊 Tide ${now.tide !== null ? now.tide.toFixed(1)+' ft' : '—'} &nbsp;`
+    + `💨 Wind ${now.wind !== null ? now.wind.toFixed(1)+' kn' : '—'} &nbsp;`
+    + `🌧 ${now.precip !== null ? now.precip.toFixed(2)+' in/hr' : '—'}<br>`
+    + `☀️ ${sunStr}</div>`;
+
+  // Chips
+  document.getElementById('chip-tide').innerHTML    = now.tide   !== null ? now.tide.toFixed(1)+'<span class="cond-chip-unit"> ft</span>'    : '—';
+  document.getElementById('chip-wind').innerHTML    = now.wind   !== null ? now.wind.toFixed(1)+'<span class="cond-chip-unit"> kn</span>'    : '—';
+  document.getElementById('chip-precip').innerHTML  = now.precip !== null ? now.precip.toFixed(2)+'<span class="cond-chip-unit"> in/hr</span>': '—';
+  document.getElementById('chip-daylight').textContent = isDaylight(now.dt, lat, lon)
+    ? (sun.rise ? `Until ${fmtTime(sun.set)}` : 'Yes') : '🌙 Night';
+}
+
+function renderWindows() {
+  const list = document.getElementById('windows-list');
+  const noWin = document.getElementById('no-windows');
+
+  // Find runs of consecutive hours scoring 100
+  const windows = [];
+  let run = null;
+  for (const h of forecast) {
+    if (h.score === 100) {
+      if (!run) run = { start: h.dt, end: h.dt, count: 1, minTide: h.tide, maxWind: h.wind };
+      else { run.end = h.dt; run.count++; run.minTide = Math.min(run.minTide, h.tide); run.maxWind = Math.max(run.maxWind, h.wind); }
+    } else {
+      if (run && run.count >= 1) windows.push(run);
+      run = null;
+    }
+  }
+  if (run && run.count >= 1) windows.push(run);
+
+  // Clear old window cards (keep no-windows div)
+  list.querySelectorAll('.window-card').forEach(el => el.remove());
+
+  if (windows.length === 0) {
+    noWin.style.display = 'block';
+    return;
+  }
+  noWin.style.display = 'none';
+
+  const today    = new Date();
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const isSameDay = (a, b) => a.toDateString() === b.toDateString();
+
+  windows.slice(0, 5).forEach(w => {
+    const dayLabel = isSameDay(w.start, today) ? 'Today'
+      : isSameDay(w.start, tomorrow) ? 'Tomorrow'
+      : fmtDay(w.start);
+    const dur = w.count === 1 ? '1 hr' : `${w.count} hrs`;
+    const div = document.createElement('div');
+    div.className = 'window-card';
+    div.innerHTML = `
+      <div>
+        <div class="window-time">${dayLabel} ${fmtTime(w.start)}${w.count > 1 ? ' – '+fmtTime(w.end) : ''}</div>
+        <div class="window-meta">Tide ≥${w.minTide.toFixed(1)} ft · Wind ≤${w.maxWind.toFixed(1)} kn</div>
+      </div>
+      <div class="window-dur">${dur}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function renderTimeline() {
+  const inner = document.getElementById('timeline-inner');
+  inner.innerHTML = '';
+  const now = Date.now();
+  let lastDay = null;
+
+  forecast.forEach((h, i) => {
+    const col = document.createElement('div');
+    col.className = 't-col';
+
+    const score   = h.score ?? 0;
+    const isNight = h.score === 0 && h.tide !== null;
+    const isNow   = i === 0;
+    const color   = scoreColor(score);
+
+    if (isNight)       col.classList.add('t-night');
+    else if (score === 100) col.classList.add('t-score-100');
+    else if (score >= 67)   col.classList.add('t-score-hi');
+    else                    col.classList.add('t-score-lo');
+    if (isNow) col.classList.add('t-now');
+
+    // Day marker at midnight transitions
+    const dayStr = h.dt.toLocaleDateString([], { weekday:'short' });
+    if (dayStr !== lastDay && !isNow) {
+      const marker = document.createElement('div');
+      marker.className = 't-day-marker';
+      marker.textContent = dayStr.toUpperCase();
+      col.appendChild(marker);
+      col.style.marginTop = '20px';
+    }
+    lastDay = dayStr;
+
+    const barH = Math.max(2, Math.round((score/100)*40));
+    const hour = h.dt.getHours();
+    const hrLabel = isNow ? 'NOW' : (hour === 0 ? '12a' : hour < 12 ? hour+'a' : hour === 12 ? '12p' : (hour-12)+'p');
+
+    const icon = isNight ? '🌙'
+      : h.precip > 0.3 ? '🌧'
+      : h.precip > 0.05 ? '🌦'
+      : h.wind > 15 ? '💨'
+      : score === 100 ? '✅'
+      : '—';
+
+    col.innerHTML += `
+      <div class="t-hour" style="${isNow ? 'color:white;font-weight:500' : ''}">${hrLabel}</div>
+      <div class="t-score-num" style="color:${isNight ? 'rgba(255,255,255,0.2)' : color}">${isNight ? '·' : score}</div>
+      <div class="t-bar-wrap"><div class="t-bar" style="height:${barH}px;background:${color};opacity:${isNight?0.2:0.7}"></div></div>
+      <div class="t-icon">${icon}</div>`;
+    inner.appendChild(col);
+  });
+
+  // Scroll to current hour
+  const nowCol = inner.querySelector('.t-now');
+  if (nowCol) nowCol.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'start' });
+}
+
+function updateHdrMeta(lat, lon) {
+  const sun = sunTimes(lat, lon, new Date());
+  const sunStr = sun.rise ? `☀️ ${fmtTime(sun.rise)} – ${fmtTime(sun.set)}` : '';
+  document.getElementById('hdr-meta').textContent =
+    `${station.name} · Updated ${new Date().toLocaleTimeString()} ${sunStr ? '· ' + sunStr : ''}`;
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function refresh() { if (!isReady) return; fetchAll(); }
+
+let threshOpen = false;
+function toggleThresh() {
+  threshOpen = !threshOpen;
+  document.getElementById('thresh-panel').style.display = threshOpen ? 'block' : 'none';
+  document.getElementById('btn-thresh').className = threshOpen ? 'open' : '';
+}
+
+function saveAndRefresh() {
+  params.minTide  = parseFloat(document.getElementById('sl-tide').value);
+  params.maxWind  = parseFloat(document.getElementById('sl-wind').value);
+  params.maxPrecip= parseFloat(document.getElementById('sl-precip').value);
+  toggleThresh();
+  // Recalculate scores from existing forecast data without re-fetching
+  const lat = userLat || station.lat;
+  const lon = userLon || station.lon;
+  for (const h of forecast) {
+    if (h.tide !== null && h.wind !== null && h.precip !== null) {
+      h.score = scoreHour(h.tide, h.wind, h.precip, h.dt, lat, lon);
+    }
+  }
+  renderNow(lat, lon);
+  renderWindows();
+  renderTimeline();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+// Try to get location automatically on load
+window.addEventListener('load', () => {
+  if (navigator.geolocation) {
+    setLoading('LOCATING…');
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLat = pos.coords.latitude;
+        userLon = pos.coords.longitude;
+        station = nearestStation(userLat, userLon);
+        document.getElementById('loc-station').textContent = station.name;
+        document.getElementById('loc-coords').textContent =
+          `${userLat.toFixed(3)}°N ${Math.abs(userLon).toFixed(3)}°W · ${haversine(userLat, userLon, station.lat, station.lon).toFixed(0)} km from station`;
+        fetchAll();
+      },
+      () => useFallback('Location unavailable — using Budd Inlet default'),
+      { timeout: 8000, maximumAge: 600000 }
+    );
+  } else {
+    useFallback('Geolocation not supported — using Budd Inlet default');
+  }
+});
+</script>
+</body>
+</html>
